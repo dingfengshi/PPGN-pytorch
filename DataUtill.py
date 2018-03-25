@@ -1,3 +1,8 @@
+'''
+@author:sssste
+https://github.com/sssste
+'''
+
 import PIL.Image as Image
 import torch
 from torch.utils.data import *
@@ -167,4 +172,3 @@ def restore_checkpoint(model_dict, path):
             now_batch = int(fline[1].split()[1])
 
     return global_step, now_batch
-
