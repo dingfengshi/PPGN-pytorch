@@ -23,8 +23,8 @@ real_smooth = 0.9
 fake_smooth = 0.1
 
 # 训练比例
-d_steps = 1
-g_steps = 0
+d_steps = 5
+g_steps = 1
 model_path = "model/"
 data_path = "/dev/shm/places365_standard/"
 batch_size = 64
@@ -200,6 +200,11 @@ def train():
     train_data = DataUtill.Placesdataset(data_path, transforms=trans)
     train_data_loader = datas.DataLoader(train_data, batch_size, shuffle=True, num_workers=10)
 
+    for name, param in D.named_parameters():
+        writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
+    for name, param in G.named_parameters():
+        writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
+
     for epoch in range(now_batch, num_epochs):
         for step, batch_data in enumerate(train_data_loader):
             # 训练判别器
@@ -217,7 +222,7 @@ def train():
                 # torchvision.utils.save_image(d_real_data.data, "real.jpg", normalize=True)
 
                 # 训练生成图像
-                d_gen_input = get_encode(encoder, d_real_data)[1]
+                real_pool5, d_gen_input = get_encode(encoder, d_real_data)
                 d_gen_input = Variable(d_gen_input)
                 d_fake_data = G(d_gen_input).detach()  # 中断梯度
                 # test
@@ -234,22 +239,22 @@ def train():
                 G.zero_grad()
 
                 # 1.pixel loss+feature_loss
-                g_real_data = Variable(batch_data["img"]).cuda()
-                real_pool5, fc6 = get_encode(encoder, g_real_data)
-                gen_input = Variable(fc6)
-                g_fake_data = G(gen_input)
+                # g_real_data = Variable(batch_data["img"]).cuda()
+                # real_pool5, fc6 = get_encode(encoder, d_real_data)
+                # gen_input = Variable(d_gen_input)
+                g_fake_data = G(d_gen_input)
 
                 # test
                 # torchvision.utils.save_image(g_fake_data.data, "gen2.jpg")
 
-                pixel_loss = lambda_pixel * pixel_criterion(g_fake_data, g_real_data)
+                pixel_loss = lambda_pixel * pixel_criterion(g_fake_data, d_real_data)
 
                 gen_pool5, fc6 = get_encode(encoder, g_fake_data)
                 feature_loss = torch.mean(torch.pow((gen_pool5 - real_pool5), 2)) * lambda_feature
 
                 pixel_loss.data = pixel_loss.data + feature_loss
 
-                pixel_loss.backward(retain_variables=True)
+                pixel_loss.backward(retain_graph=True)
 
                 # 2.对抗损失
                 dg_fake_decision = D(g_fake_data)
@@ -262,16 +267,16 @@ def train():
             if global_step % 200 == 0:
                 writer.add_scalars("/loss/Discriminator_loss", {'real_loss': d_real_error.data[0],
                                                                 'fake_loss': d_fake_error.data[0]}, global_step)
-                # writer.add_scalar("/loss/pixel_loss", pixel_loss.data[0], global_step)
-                # writer.add_scalar("/loss/adv_loss", g_error.data[0], global_step)
-                # writer.add_scalar("/loss/feature_loss", feature_loss, global_step)
+                writer.add_scalar("/loss/pixel_loss", pixel_loss.data[0], global_step)
+                writer.add_scalar("/loss/adv_loss", g_error.data[0], global_step)
+                writer.add_scalar("/loss/feature_loss", feature_loss, global_step)
                 # writer.add_scalar("/loss/total_loss", pixel_loss.data[0] + g_error.data[0], global_step)
                 # for name, param in D.named_parameters():
                 #     writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
                 # writer.add_scalar("learning_rate", DataUtill.get_learning_rate_from_optim(g_optimizer), global_step)
 
-            if global_step % 1000 == 0:
-                # torchvision.utils.save_image(g_fake_data.data, "output/" + str(global_step) + ".jpg", normalize=True)
+            if global_step % 2000 == 0:
+                torchvision.utils.save_image(g_fake_data.data, "output/" + str(global_step) + ".jpg", normalize=True)
                 DataUtill.save_checkpoint({
                     "generator": G,
                     "discriminator": D
