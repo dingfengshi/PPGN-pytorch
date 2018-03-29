@@ -23,6 +23,12 @@ class Placesdataset(Dataset):
         else:
             self.frame_file = path + "val.txt"
 
+        self.classes_list = ["street", "palace", "mountain", "living_room", "kitchen", "house", "dining_room",
+                             "driveway",
+                             "bedroom", "botanical_garden", "bridge", "closet", "alley", "hotel_room", "art_gallery",
+                             "museum-indoor", "bar", "clean_room", "courtyard", "courthouse", "office", "throne_room",
+                             "volcano"]
+
         class2id = {}
         id2class = {}
         # 分类名称号码
@@ -40,9 +46,11 @@ class Placesdataset(Dataset):
         id = 0
         with open(self.frame_file) as f:
             for eachline in f.readlines():
-                path = eachline.split()
-                images[id] = path
-                id = id + 1
+                path = eachline.split()[0]
+                cat = path.split('/')[1]
+                if cat in self.classes_list:
+                    images[id] = path
+                    id = id + 1
         self.images = images
 
     def __len__(self):
@@ -52,13 +60,13 @@ class Placesdataset(Dataset):
     def __getitem__(self, idx):
         # 实现数据提取和转换
         path = self.images[idx]
-        img = Image.open(self.path + path[0])
+        img = Image.open(self.path + path)
         img = img.convert('RGB')
 
         if self.transforms:
             img = self.transforms(img)
 
-        class_id = self.class2id[path[0].split('/')[1]]
+        class_id = self.class2id[path.split('/')[1]]
         sparse_class = torch.LongTensor([class_id])
 
         return {"img": img, "class": sparse_class}

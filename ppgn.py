@@ -23,7 +23,7 @@ real_smooth = 0.9
 fake_smooth = 0.1
 
 # 训练比例
-d_steps = 5
+d_steps = 1
 g_steps = 1
 model_path = "model/"
 data_path = "/dev/shm/places365_standard/"
@@ -96,13 +96,13 @@ class Discriminator(nn.Module):
         # 3,256,256
         self.conv1 = nn.Conv2d(3, 96, kernel_size=4, stride=2, padding=1)
         self.batchnorm1 = nn.BatchNorm2d(96)
-        self.conv2 = nn.Conv2d(96, 256, 4, 2, 1)
+        self.conv2 = nn.Conv2d(96, 256, 4, 2, 1, groups=2)
         self.batchnorm2 = nn.BatchNorm2d(256)
-        self.conv3 = nn.Conv2d(256, 384, 4, 2, 1)
+        self.conv3 = nn.Conv2d(256, 384, 4, 2, 1, groups=2)
         self.batchnorm3 = nn.BatchNorm2d(384)
-        self.conv4 = nn.Conv2d(384, 384, 4, 2, 1)
+        self.conv4 = nn.Conv2d(384, 384, 4, 2, 1, groups=2)
         self.batchnorm4 = nn.BatchNorm2d(384)
-        self.conv5 = nn.Conv2d(384, 256, 4, 2, 1)
+        self.conv5 = nn.Conv2d(384, 256, 4, 2, 1, groups=2)
         self.batchnorm5 = nn.BatchNorm2d(256)
         self.conv6 = nn.Conv2d(256, 1, 8, 8, 0)
 
@@ -137,9 +137,15 @@ class Discriminator(nn.Module):
 
 
 def weight_init(m):
-    if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
-        init.normal(m.weight.data, 0, 0.002)
-        init.constant(m.bias.data, 0)
+    if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+        init.orthogonal(m.weight.data, 1.0)
+    elif isinstance(m, nn.BatchNorm2d):
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
+    elif isinstance(m, nn.Linear):
+        init.orthogonal(m.weight.data, 1.0)
+        if m.bias is not None:
+            m.bias.data.fill_(0)
 
 
 def get_encode(encoder, img):
@@ -168,10 +174,11 @@ def train():
 
     G.apply(weight_init)
     D.apply(weight_init)
-    G.train()
-    D.train()
 
     global_step, now_batch = DataUtill.restore_checkpoint({"generator": G, "discriminator": D}, model_path)
+
+    G.train()
+    D.train()
 
     encoder.cuda()
     G.cuda()
@@ -187,8 +194,8 @@ def train():
     d_optimizer.param_groups[0]["initial_lr"] = d_learning_rate
     g_optimizer.param_groups[0]["initial_lr"] = g_learning_rate
 
-    d_optimizer = optim.lr_scheduler.ExponentialLR(d_optimizer, 0.5, now_batch)
-    g_optimizer = optim.lr_scheduler.ExponentialLR(g_optimizer, 0.5, now_batch)
+    d_lr_optim = optim.lr_scheduler.ExponentialLR(d_optimizer, 0.998, now_batch)
+    g_lr_optim = optim.lr_scheduler.ExponentialLR(g_optimizer, 0.998, now_batch)
 
     # d_optimizer = optim.lr_scheduler.ExponentialLR(d_optimizer, 0.5, now_batch)
 
@@ -200,10 +207,10 @@ def train():
     train_data = DataUtill.Placesdataset(data_path, transforms=trans)
     train_data_loader = datas.DataLoader(train_data, batch_size, shuffle=True, num_workers=10)
 
-    for name, param in D.named_parameters():
-        writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
-    for name, param in G.named_parameters():
-        writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
+    # for name, param in D.named_parameters():
+    #     writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
+    # for name, param in G.named_parameters():
+    #     writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
 
     for epoch in range(now_batch, num_epochs):
         for step, batch_data in enumerate(train_data_loader):
@@ -270,7 +277,7 @@ def train():
                 writer.add_scalar("/loss/pixel_loss", pixel_loss.data[0], global_step)
                 writer.add_scalar("/loss/adv_loss", g_error.data[0], global_step)
                 writer.add_scalar("/loss/feature_loss", feature_loss, global_step)
-                # writer.add_scalar("/loss/total_loss", pixel_loss.data[0] + g_error.data[0], global_step)
+                writer.add_scalar("/loss/total_loss", pixel_loss.data[0] + g_error.data[0], global_step)
                 # for name, param in D.named_parameters():
                 #     writer.add_histogram(name, param.clone().cpu().data.numpy(), global_step)
                 # writer.add_scalar("learning_rate", DataUtill.get_learning_rate_from_optim(g_optimizer), global_step)
@@ -282,7 +289,10 @@ def train():
                     "discriminator": D
                 }, global_step, epoch, model_path)
                 writer.add_scalar("Discriminator_learning_rate",
-                                  DataUtill.get_learning_rate_from_scheduler_optim(d_optimizer), global_step)
+                                  DataUtill.get_learning_rate_from_optim(d_optimizer), global_step)
+
+        g_lr_optim.step()
+        d_lr_optim.step()
         print("epoch {} finished".format(epoch))
 
     writer.close()
