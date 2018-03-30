@@ -1,5 +1,5 @@
- [Plug & Play Generative Networks: Conditional Iterative Generation of Images in Latent Space](https://arxiv.org/abs/1612.00005)
- 的pytorch复现  
+## [Plug & Play Generative Networks: Conditional Iterative Generation of Images in Latent Space](https://arxiv.org/abs/1612.00005)的pytorch复现  
+ 
  
  - 模型定义与训练在ppgn.py中  
  - MCMC采样在sampler.py中
