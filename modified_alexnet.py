@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 
 
+
 class modifiedAlexNet(nn.Module):
 
     def __init__(self, num_classes=365):

@@ -23,11 +23,8 @@ class Placesdataset(Dataset):
         else:
             self.frame_file = path + "val.txt"
 
-        self.classes_list = ["street", "palace", "mountain", "living_room", "kitchen", "house", "dining_room",
-                             "driveway",
-                             "bedroom", "botanical_garden", "bridge", "closet", "alley", "hotel_room", "art_gallery",
-                             "museum-indoor", "bar", "clean_room", "courtyard", "courthouse", "office", "throne_room",
-                             "volcano"]
+        # self.classes_list = ["street", "palace", "mountain", "living_room", "kitchen", "house", "dining_room",
+        #                      "driveway", "bedroom", "bridge", "closet", "alley", "hotel_room", "clean_room", "volcano"]
 
         class2id = {}
         id2class = {}
@@ -47,10 +44,10 @@ class Placesdataset(Dataset):
         with open(self.frame_file) as f:
             for eachline in f.readlines():
                 path = eachline.split()[0]
-                cat = path.split('/')[1]
-                if cat in self.classes_list:
-                    images[id] = path
-                    id = id + 1
+                # cat = path.split('/')[1]
+                # if cat in self.classes_list:
+                images[id] = path
+                id = id + 1
         self.images = images
 
     def __len__(self):

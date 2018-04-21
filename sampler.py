@@ -32,7 +32,7 @@ def alex_transfrom(img):
     return img_norm.view([1, 3, 256, 256])[:, :, 16:240, 16:240]
 
 
-def sample(samples=10, sample_step=100):
+def sample(samples=10):
     G = ppgn.Generator()
     encoder = modified_alexnet.modifiedAlexNet()
     classifier = torch.load("whole_alexnet_places365_python36.pth.tar")
@@ -59,7 +59,7 @@ def sample(samples=10, sample_step=100):
             h = Variable(fc6.cuda(), requires_grad=True)
             e2optim = optim.SGD([h], epsilon2)
 
-            for i in range(sample_step):
+            for i in range(n_iter):
                 # 1.计算epsilon1项
                 gen = G(h)
                 torchvision.utils.save_image(gen.data, "sample/test{}.jpg".format(pic_num), 1, normalize=True)
