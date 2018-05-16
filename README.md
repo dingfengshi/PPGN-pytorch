@@ -5,9 +5,9 @@
  - MCMC采样在sampler.py中
  
 ## 2018.4.17 Update
- - 调整了一下网络结构
- - 加入了Spectral normalization，多样性有所提高
- - 训练到一半被亚马逊清服务器了，云上的备份都没了，只能看个效果了哭
+ 
+ - 判别器设计得有点太简单了，产生了模糊
+ ![](https://github.com/sssste/DeepLeraningNotes/blob/master/pic/1030000.jpg)
  ![](https://github.com/sssste/DeepLeraningNotes/blob/master/pic/394000.jpg)
   ![](https://github.com/sssste/DeepLeraningNotes/blob/master/pic/396000.jpg)
 
